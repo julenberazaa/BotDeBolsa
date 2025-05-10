@@ -1,0 +1,16 @@
+clc
+clear all
+close all
+
+
+
+Listado = dir('.\stocks');
+for i=1:length(Listado)
+    if length(strfind('Listado(i).name, .csv'))>0
+        FicheroConPath =strcat('Listado(i).name, .csv');
+        datos = importarfichero(FicheroConPath);
+        Cotizaciones=datos.open;
+        Retornos=diff(Cotizaciones)
+        RetornosMedios
+    end
+end

@@ -1,0 +1,75 @@
+clc;
+clear;
+close all;
+
+% Carpeta
+carpeta = './stocks';
+archivos = dir(fullfile(carpeta, '*.csv'));
+fprintf("Procesando %d archivos...\n", length(archivos));
+
+% Inicialización
+fechasComunes = [];
+retornosTotales = [];
+inversiones = struct();
+iAct = 0;
+maxActivos = 10;
+
+for i = 1:length(archivos)
+    if iAct >= maxActivos
+        break;
+    end
+
+    try
+        nombreArchivo = archivos(i).name;
+        fullPath = fullfile(carpeta, nombreArchivo);
+        datos = Irakurtzea(fullPath);
+
+        if isempty(datos) || height(datos) < 20
+            fprintf("Saltado: %s (pocos datos)\n", nombreArchivo);
+            continue;
+        end
+
+        precios = datos.Open;
+        fechas = datos.Date(2:end);
+        retornos = diff(log(precios));
+
+        if length(fechas) ~= length(retornos)
+            fprintf("Saltado: %s (fechas y retornos desalineados)\n", nombreArchivo);
+            continue;
+        end
+
+        if isempty(fechasComunes)
+            fechasComunes = fechas;
+            retornosTotales = retornos(:)';
+        else
+            [fechasComunesNew, idxExist, idxNuevo] = intersect(fechasComunes, fechas);
+            if length(fechasComunesNew) < 50
+                fprintf("Saltado: %s (pocas fechas comunes)\n", nombreArchivo);
+                continue;
+            end
+            fechasComunes = fechasComunesNew;
+            retornosTotales = retornosTotales(:, idxExist);
+            retornosFiltrado = retornos(idxNuevo)';
+            retornosTotales = [retornosTotales; retornosFiltrado];
+        end
+
+        iAct = iAct + 1;
+        inversiones(iAct).nombre = erase(nombreArchivo, '.csv');
+        fprintf("Añadido: %s (%d retornos)\n", nombreArchivo, length(retornos));
+
+    catch ME
+        fprintf("Error en %s: %s\n", nombreArchivo, ME.message);
+    end
+end
+
+% Resultado final
+RetornosMedios = retornosTotales(:, 1:length(fechasComunes));  % Activos x Fechas
+VarianzaRetornos = var(RetornosMedios, 0, 2);
+
+% Guardar
+save('ReaderBeginingDLR.mat', 'RetornosMedios', 'VarianzaRetornos', 'inversiones');
+fprintf("Guardado 'ReaderBeginingDLR.mat' con [%d activos x %d pasos]\n", ...
+    size(RetornosMedios, 1), size(RetornosMedios, 2));
+
+%bariantzaren matrizearen grafikoa, erregfresio lineala
+%dentro de spo si sabe la función que invierta más es eso
